@@ -8,6 +8,13 @@ function App() {
   const [loggedIn, setLoggedIn] = useState(false);
   const [vehicles, setVehicles] = useState([]);
 
+  const loadVehicles = () => {
+    fetch("http://localhost:5000/api/vehicles")
+      .then((res) => res.json())
+      .then((data) => setVehicles(data))
+      .catch((err) => console.error(err));
+  };
+
   const handleLogin = async (e) => {
     e.preventDefault();
 
@@ -35,13 +42,56 @@ function App() {
   };
 
   useEffect(() => {
-    if (!loggedIn) return;
-
-    fetch("http://localhost:5000/api/vehicles")
-      .then((res) => res.json())
-      .then((data) => setVehicles(data))
-      .catch((err) => console.error(err));
+    if (loggedIn) {
+      loadVehicles();
+    }
   }, [loggedIn]);
+
+  const purchaseVehicle = async (id) => {
+    const token = localStorage.getItem("token");
+
+    const response = await fetch(
+      `http://localhost:5000/api/vehicles/${id}/purchase`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      }
+    );
+
+    const data = await response.json();
+
+    if (response.ok) {
+      setMessage("Vehicle purchased successfully!");
+      loadVehicles();
+    } else {
+      setMessage(data.error || "Purchase failed");
+    }
+  };
+
+  const restockVehicle = async (id) => {
+    const token = localStorage.getItem("token");
+
+    const response = await fetch(
+      `http://localhost:5000/api/vehicles/${id}/restock`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      }
+    );
+
+    const data = await response.json();
+
+    if (response.ok) {
+      setMessage("Vehicle restocked successfully!");
+      loadVehicles();
+    } else {
+      setMessage(data.error || "Restock failed");
+    }
+  };
 
   if (loggedIn) {
     return (
@@ -49,18 +99,34 @@ function App() {
         <h1>Car Dealership</h1>
         <h2>Available Vehicles</h2>
 
+        {message && <p className="message">{message}</p>}
+
         {vehicles.length === 0 ? (
           <p>No vehicles available.</p>
         ) : (
           vehicles.map((car) => (
-            <div key={car.id}>
+            <div key={car.id} className="vehicle-card">
               <h3>
                 {car.make} {car.model}
               </h3>
+
               <p>Category: {car.category}</p>
               <p>Price: ₹{car.price}</p>
-              <p>Available: {car.quantity}</p>
-              <hr />
+
+              <p>
+                Stock: <strong>{car.quantity}</strong>
+              </p>
+
+              <button
+                onClick={() => purchaseVehicle(car.id)}
+                disabled={car.quantity === 0}
+              >
+                {car.quantity === 0 ? "Out of Stock" : "Purchase"}
+              </button>
+
+              <button onClick={() => restockVehicle(car.id)}>
+                Restock
+              </button>
             </div>
           ))
         )}
